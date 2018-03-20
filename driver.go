@@ -57,6 +57,9 @@ func (d *gcpVolDriver) Create(r *volume.CreateRequest) error {
 	// Create a bucket on GCP Storage
 	bucketName, err := d.handleCreateGCStorageBucket(r.Name)
 	if err != nil {
+		// but we already created a mountpoint! So (try to) delete it,
+		// ignoring errors (???)
+		d.handleDeleteMountpoint(r.Name)
 		return err
 	}
 	// Refer volumeName <-> gcsVolumes
