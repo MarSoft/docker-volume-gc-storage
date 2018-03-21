@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 
 	"github.com/docker/go-plugins-helpers/volume"
 )
@@ -17,6 +19,9 @@ const (
 )
 
 var serviceKeyPath = flag.String("gcp-key-json", "", "Google Cloud Platform Service Account Key as JSON")
+var baseDirFlag = flag.String("basedir",
+	filepath.Join(volume.DefaultDockerRootDirectory, driverID),
+	"Mounted volume base directory")
 
 func main() {
 	// define CLI & get args
@@ -31,7 +36,7 @@ func main() {
 	}
 
 	// define volume driver
-	defaultPath := filepath.Join(volume.DefaultDockerRootDirectory, driverID)
+	defaultPath := *baseDirFlag
 	gcpServiceKeyAbsPath, err := filepath.Abs(*serviceKeyPath)
 	if err != nil {
 		log.Fatal(err)
@@ -47,8 +52,9 @@ func main() {
 	// start HTTP server
 	if runtime.GOOS == "linux" {
 		log.Printf("Listening on unix socket /run/docker/plugins/%s.sock...\n", driverID)
-		// 0 means root's gid
-		log.Println(volHandler.ServeUnix(driverID, 0))
+		u, _ := user.Lookup("root")
+		gid, _ := strconv.Atoi(u.Gid)
+		log.Println(volHandler.ServeUnix(driverID, gid))
 	}
 	if runtime.GOOS == "darwin" { // MacOS
 		log.Fatal("unix socket creation is only supported on linux and freebsd")
